@@ -1,0 +1,46 @@
+{
+  "updatedAt": "2026-06-22T17:18:00+08:00",
+  "reports": [
+    {
+      "id": "demo-api-failure-004",
+      "event": "api_failure",
+      "level": "warning",
+      "appName": "Gimme",
+      "bundleId": "com.gimme.mobile",
+      "version": "3.1.2",
+      "time": "2026-06-22T17:18:00+08:00",
+      "path": "reports/2026-06-22/api_failure_demo.json"
+    },
+    {
+      "id": "demo-high-memory-001",
+      "event": "high_memory",
+      "level": "warning",
+      "appName": "DemoApp",
+      "bundleId": "com.example.demo",
+      "version": "1.0.0",
+      "time": "2026-06-22T17:10:00+08:00",
+      "path": "reports/2026-06-22/high_memory_demo.json"
+    },
+    {
+      "id": "demo-low-fps-002",
+      "event": "low_fps",
+      "level": "warning",
+      "appName": "DemoApp",
+      "bundleId": "com.example.demo",
+      "version": "1.0.0",
+      "time": "2026-06-22T17:06:00+08:00",
+      "path": "reports/2026-06-22/low_fps_demo.json"
+    },
+    {
+      "id": "demo-thermal-003",
+      "event": "thermal_critical",
+      "level": "critical",
+      "appName": "MallApp",
+      "bundleId": "com.example.mall",
+      "version": "2.3.1",
+      "time": "2026-06-22T16:58:00+08:00",
+      "path": "reports/2026-06-22/thermal_critical_demo.json"
+    }
+  ]
+}
+

@@ -1,0 +1,62 @@
+{
+  "id": "demo-low-fps-002",
+  "event": "low_fps",
+  "level": "warning",
+  "time": "2026-06-22T17:06:00+08:00",
+  "app": {
+    "bundleId": "com.example.demo",
+    "name": "DemoApp",
+    "version": "1.0.0",
+    "build": "100"
+  },
+  "device": {
+    "model": "iPhone16,1",
+    "systemName": "iOS",
+    "systemVersion": "26.0",
+    "language": "zh-Hans-CN",
+    "region": "CN",
+    "timeZone": "Asia/Shanghai"
+  },
+  "runtime": {
+    "cpu": 46.1,
+    "memoryMB": 512.3,
+    "fps": 18,
+    "averageFPS": 24,
+    "minimumFPS": 12,
+    "launchTime": 86.1
+  },
+  "network": {
+    "type": "Cellular",
+    "isExpensive": true,
+    "isConstrained": false,
+    "uploadMB": null,
+    "downloadMB": null
+  },
+  "disk": {
+    "totalGB": 128,
+    "freeGB": 33.6,
+    "usedGB": 94.4
+  },
+  "battery": {
+    "level": 37,
+    "charging": false,
+    "state": "unplugged",
+    "lowPowerMode": true
+  },
+  "thermal": {
+    "state": "nominal"
+  },
+  "page": {
+    "current": "LiveRoomViewController",
+    "previous": "HomeViewController",
+    "stayDuration": 302.8
+  },
+  "counters": {
+    "socketReconnects": 0,
+    "uploadFailures": 0,
+    "apiFailures": 0
+  },
+  "eventHistory": [],
+  "networkHistory": []
+}
+

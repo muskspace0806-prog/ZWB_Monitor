@@ -1,0 +1,62 @@
+{
+  "id": "demo-thermal-003",
+  "event": "thermal_critical",
+  "level": "critical",
+  "time": "2026-06-22T16:58:00+08:00",
+  "app": {
+    "bundleId": "com.example.mall",
+    "name": "MallApp",
+    "version": "2.3.1",
+    "build": "2310"
+  },
+  "device": {
+    "model": "iPhone17,1",
+    "systemName": "iOS",
+    "systemVersion": "26.0",
+    "language": "zh-Hans-CN",
+    "region": "CN",
+    "timeZone": "Asia/Shanghai"
+  },
+  "runtime": {
+    "cpu": 91.8,
+    "memoryMB": 744.2,
+    "fps": 21,
+    "averageFPS": 28,
+    "minimumFPS": 14,
+    "launchTime": 419.7
+  },
+  "network": {
+    "type": "WiFi",
+    "isExpensive": false,
+    "isConstrained": false,
+    "uploadMB": null,
+    "downloadMB": null
+  },
+  "disk": {
+    "totalGB": 512,
+    "freeGB": 7.4,
+    "usedGB": 504.6
+  },
+  "battery": {
+    "level": 64,
+    "charging": true,
+    "state": "charging",
+    "lowPowerMode": false
+  },
+  "thermal": {
+    "state": "critical"
+  },
+  "page": {
+    "current": "CheckoutViewController",
+    "previous": "ProductDetailViewController",
+    "stayDuration": 72.4
+  },
+  "counters": {
+    "socketReconnects": 0,
+    "uploadFailures": 3,
+    "apiFailures": 6
+  },
+  "eventHistory": [],
+  "networkHistory": []
+}
+

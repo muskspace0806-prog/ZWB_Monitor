@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZWB Monitor Dashboard</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>ZWB Monitor</h1>
+        <p>性能预警报告汇总</p>
+      </div>
+      <button id="reloadButton" type="button">刷新</button>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="搜索 App、事件、设备、页面">
+        <select id="levelFilter">
+          <option value="">全部等级</option>
+          <option value="info">Info</option>
+          <option value="warning">Warning</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>App</th>
+              <th>事件</th>
+              <th>页面</th>
+              <th>CPU</th>
+              <th>内存</th>
+              <th>FPS</th>
+              <th>设备</th>
+              <th>网络</th>
+            </tr>
+          </thead>
+          <tbody id="reportRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="detail" id="detail"></section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
+

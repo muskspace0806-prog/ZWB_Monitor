@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZWB Monitor Dashboard</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">ZWB Monitor</h1>
+        <p id="pageSubtitle">应用性能监控总览</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="backButton" class="secondary hidden" type="button">返回应用列表</button>
+        <button id="reloadButton" type="button">刷新</button>
+      </div>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="panel" id="appPage">
+      <div class="toolbar">
+        <input id="appSearchInput" type="search" placeholder="搜索 App 名称或 Bundle ID">
+      </div>
+      <div class="app-grid" id="appGrid"></div>
+    </section>
+
+    <section class="panel hidden" id="reportPage">
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="搜索 App、事件、设备、页面">
+        <select id="levelFilter">
+          <option value="">全部等级</option>
+          <option value="info">普通信息</option>
+          <option value="warning">警告</option>
+          <option value="critical">严重</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>App</th>
+              <th>事件</th>
+              <th>页面</th>
+              <th>CPU</th>
+              <th>内存</th>
+              <th>FPS</th>
+              <th>设备</th>
+              <th>网络</th>
+            </tr>
+          </thead>
+          <tbody id="reportRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="detail hidden" id="detail"></section>
+  </main>
+  <script src="./app.js?v=202606221720"></script>
+</body>
+</html>

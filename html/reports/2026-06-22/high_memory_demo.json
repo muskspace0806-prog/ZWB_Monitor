@@ -1,0 +1,75 @@
+{
+  "id": "demo-high-memory-001",
+  "event": "high_memory",
+  "level": "warning",
+  "time": "2026-06-22T17:10:00+08:00",
+  "app": {
+    "bundleId": "com.example.demo",
+    "name": "DemoApp",
+    "version": "1.0.0",
+    "build": "100"
+  },
+  "device": {
+    "model": "iPhone17,2",
+    "systemName": "iOS",
+    "systemVersion": "26.0",
+    "language": "zh-Hans-CN",
+    "region": "CN",
+    "timeZone": "Asia/Shanghai"
+  },
+  "runtime": {
+    "cpu": 72.4,
+    "memoryMB": 891.6,
+    "fps": 49,
+    "averageFPS": 55,
+    "minimumFPS": 42,
+    "launchTime": 128.4
+  },
+  "network": {
+    "type": "WiFi",
+    "isExpensive": false,
+    "isConstrained": false,
+    "uploadMB": null,
+    "downloadMB": null
+  },
+  "disk": {
+    "totalGB": 256,
+    "freeGB": 18.2,
+    "usedGB": 237.8
+  },
+  "battery": {
+    "level": 82,
+    "charging": false,
+    "state": "unplugged",
+    "lowPowerMode": false
+  },
+  "thermal": {
+    "state": "fair"
+  },
+  "page": {
+    "current": "ChatViewController",
+    "previous": "ConversationListViewController",
+    "stayDuration": 45.2
+  },
+  "counters": {
+    "socketReconnects": 1,
+    "uploadFailures": 0,
+    "apiFailures": 2
+  },
+  "eventHistory": [
+    {
+      "name": "ZWBMonitorStarted",
+      "time": "2026-06-22T17:00:00+08:00",
+      "attributes": {}
+    },
+    {
+      "name": "PageAppear",
+      "time": "2026-06-22T17:09:20+08:00",
+      "attributes": {
+        "page": "ChatViewController"
+      }
+    }
+  ],
+  "networkHistory": []
+}
+
