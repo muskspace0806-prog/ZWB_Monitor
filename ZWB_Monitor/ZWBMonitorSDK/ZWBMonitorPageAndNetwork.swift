@@ -71,7 +71,8 @@ public final class ZWBMonitorURLProtocol: URLProtocol {
         startedAt = Date()
         let mutable = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
         URLProtocol.setProperty(true, forKey: Self.handledKey, in: mutable)
-        let requestBytes = mutable.httpBody?.count ?? 0
+        let contentLength = mutable.value(forHTTPHeaderField: "Content-Length").flatMap(Int.init)
+        let requestBytes = mutable.httpBody?.count ?? contentLength ?? 0
 
         dataTask = URLSession.shared.dataTask(with: mutable as URLRequest) { [weak self] data, response, error in
             guard let self else { return }
@@ -84,6 +85,8 @@ public final class ZWBMonitorURLProtocol: URLProtocol {
                 durationMS: (duration * 100).rounded() / 100,
                 requestBytes: requestBytes,
                 responseBytes: data?.count ?? 0,
+                trafficGroup: nil,
+                trafficCategory: nil,
                 error: error?.localizedDescription,
                 time: ISO8601DateFormatter().string(from: Date())
             )

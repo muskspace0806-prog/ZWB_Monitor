@@ -137,6 +137,171 @@ let session = URLSession(configuration: configuration)
 
 The SDK records URL, method, status code, duration, request size, response size, and error message.
 
+## Traffic Grouping
+
+By default, if no rules are configured, all captured HTTP traffic is grouped into a single bucket: `All Traffic`.
+
+To split API traffic, resource downloads, Qiniu uploads, or other domains, configure host rules:
+
+```swift
+let config = ZWBMonitorConfig(
+    trafficRules: [
+        ZWBMonitorTrafficRule(
+            name: "Business API",
+            hosts: ["123.com", "api.123.com"],
+            category: .api
+        ),
+        ZWBMonitorTrafficRule(
+            name: "Qiniu Resource Download",
+            hosts: ["456.com", "cdn.456.com"],
+            category: .resource
+        ),
+        ZWBMonitorTrafficRule(
+            name: "Qiniu File Upload",
+            hosts: ["upload.qiniup.com", "up.qiniup.com"],
+            category: .qiniu
+        )
+    ]
+)
+
+ZWBMonitor.start(config: config)
+```
+
+The SDK matches each request by URL host and tracks:
+
+- Upload bytes
+- Download bytes
+- Request count
+- Failure count
+- Recent request records
+
+If no rule matches, traffic goes into `Unclassified Traffic`.
+
+### Qiniu Upload
+
+Qiniu SDKs may hide their internal network stack, so automatic interception may not fully capture multipart upload, retry behavior, or real file size. For accurate upload traffic, record it in the Qiniu upload callback:
+
+```swift
+let start = Date()
+let fileSize = Int64(data.count)
+
+uploadManager.put(data, key: key, token: token, complete: { info, key, resp in
+    ZWBMonitor.recordUploadTraffic(
+        provider: "qiniu",
+        host: "upload.qiniup.com",
+        scene: "chat_attachment",
+        fileCategory: .image,
+        fileExtension: "jpg",
+        mimeType: "image/jpeg",
+        bytes: fileSize,
+        duration: Date().timeIntervalSince(start),
+        success: info?.isOK == true,
+        error: info?.error?.localizedDescription
+    )
+}, option: option)
+```
+
+For file URL uploads:
+
+```swift
+let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+let fileSize = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+let fileCategory = ZWBMonitorFileCategory.infer(fromExtension: fileURL.pathExtension)
+```
+
+Supported file categories:
+
+```text
+image / video / audio / document / archive / svga / file / unknown
+```
+
+### Image Loading And Cache Hits
+
+Image loading stats and real network traffic are different metrics:
+
+- Real image download traffic is tracked by the network layer and domain rules.
+- Image display count and cache hits are tracked by Kingfisher / SDWebImage callbacks.
+
+Cache hits are not counted as download traffic again. They are only counted in image usage stats.
+
+Kingfisher example:
+
+```swift
+imageView.kf.setImage(with: url) { result in
+    switch result {
+    case .success(let value):
+        ZWBMonitor.recordImageLoad(
+            url: url,
+            scene: "chat_image",
+            cacheType: value.cacheType.zwbCacheType,
+            success: true
+        )
+    case .failure(let error):
+        ZWBMonitor.recordImageLoad(
+            url: url,
+            scene: "chat_image",
+            cacheType: .none,
+            success: false,
+            error: error.localizedDescription
+        )
+    }
+}
+```
+
+SDWebImage example:
+
+```swift
+imageView.sd_setImage(with: url) { image, error, cacheType, imageURL in
+    ZWBMonitor.recordImageLoad(
+        url: imageURL ?? url,
+        scene: "chat_image",
+        cacheType: cacheType.zwbCacheType,
+        success: error == nil,
+        error: error?.localizedDescription
+    )
+}
+```
+
+Add a tiny adapter in your app:
+
+```swift
+// Kingfisher
+extension CacheType {
+    var zwbCacheType: ZWBMonitorResourceCacheType {
+        switch self {
+        case .memory:
+            return .memory
+        case .disk:
+            return .disk
+        case .none:
+            return .none
+        @unknown default:
+            return .unknown
+        }
+    }
+}
+
+// SDWebImage
+extension SDImageCacheType {
+    var zwbCacheType: ZWBMonitorResourceCacheType {
+        switch self {
+        case .memory:
+            return .memory
+        case .disk:
+            return .disk
+        case .none:
+            return .none
+        default:
+            return .unknown
+        }
+    }
+}
+```
+
+### Agora RTC
+
+Agora real-time audio/video traffic is intentionally not handled for now. It usually does not go through normal URLSession requests. If needed later, it should be integrated through Agora SDK stats callbacks.
+
 ## Report Upload
 
 ### Default HTTP Uploader

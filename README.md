@@ -137,6 +137,171 @@ let session = URLSession(configuration: configuration)
 
 SDK 会记录请求 URL、Method、状态码、耗时、请求大小、响应大小和错误信息。
 
+## 流量分组统计
+
+默认情况下，如果不配置任何规则，SDK 只会把可捕获的 HTTP 流量归为一个总分组：`All Traffic`，不会按域名拆分。
+
+如果你希望把业务接口、资源下载、七牛上传等流量拆开，可以配置域名规则：
+
+```swift
+let config = ZWBMonitorConfig(
+    trafficRules: [
+        ZWBMonitorTrafficRule(
+            name: "业务接口",
+            hosts: ["123.com", "api.123.com"],
+            category: .api
+        ),
+        ZWBMonitorTrafficRule(
+            name: "七牛资源下载",
+            hosts: ["456.com", "cdn.456.com"],
+            category: .resource
+        ),
+        ZWBMonitorTrafficRule(
+            name: "七牛文件上传",
+            hosts: ["upload.qiniup.com", "up.qiniup.com"],
+            category: .qiniu
+        )
+    ]
+)
+
+ZWBMonitor.start(config: config)
+```
+
+SDK 会根据请求 URL 的 host 自动匹配规则，并统计：
+
+- 上行流量
+- 下载流量
+- 请求次数
+- 失败次数
+- 最近请求记录
+
+如果没有匹配到任何规则，会进入 `Unclassified Traffic`。
+
+### 七牛云上传
+
+七牛云 SDK 可能内部封装网络层，自动拦截不一定能完整捕获分片、重试和真实文件大小。建议在七牛上传回调里手动补充记录：
+
+```swift
+let start = Date()
+let fileSize = Int64(data.count)
+
+uploadManager.put(data, key: key, token: token, complete: { info, key, resp in
+    ZWBMonitor.recordUploadTraffic(
+        provider: "qiniu",
+        host: "upload.qiniup.com",
+        scene: "chat_attachment",
+        fileCategory: .image,
+        fileExtension: "jpg",
+        mimeType: "image/jpeg",
+        bytes: fileSize,
+        duration: Date().timeIntervalSince(start),
+        success: info?.isOK == true,
+        error: info?.error?.localizedDescription
+    )
+}, option: option)
+```
+
+如果上传的是文件 URL，可以先读取文件大小：
+
+```swift
+let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+let fileSize = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+let fileCategory = ZWBMonitorFileCategory.infer(fromExtension: fileURL.pathExtension)
+```
+
+`fileCategory` 支持：
+
+```text
+image / video / audio / document / archive / svga / file / unknown
+```
+
+### 图片加载和缓存命中
+
+图片加载统计和真实网络流量是两件事：
+
+- 图片真实下载流量：由网络层按域名统计。
+- 图片展示次数和缓存命中：由 Kingfisher / SDWebImage 回调记录。
+
+缓存命中时不会重复计入下载流量，只会计入图片使用统计。
+
+Kingfisher 示例：
+
+```swift
+imageView.kf.setImage(with: url) { result in
+    switch result {
+    case .success(let value):
+        ZWBMonitor.recordImageLoad(
+            url: url,
+            scene: "chat_image",
+            cacheType: value.cacheType.zwbCacheType,
+            success: true
+        )
+    case .failure(let error):
+        ZWBMonitor.recordImageLoad(
+            url: url,
+            scene: "chat_image",
+            cacheType: .none,
+            success: false,
+            error: error.localizedDescription
+        )
+    }
+}
+```
+
+SDWebImage 示例：
+
+```swift
+imageView.sd_setImage(with: url) { image, error, cacheType, imageURL in
+    ZWBMonitor.recordImageLoad(
+        url: imageURL ?? url,
+        scene: "chat_image",
+        cacheType: cacheType.zwbCacheType,
+        success: error == nil,
+        error: error?.localizedDescription
+    )
+}
+```
+
+你可以在业务侧写一个很薄的映射扩展：
+
+```swift
+// Kingfisher
+extension CacheType {
+    var zwbCacheType: ZWBMonitorResourceCacheType {
+        switch self {
+        case .memory:
+            return .memory
+        case .disk:
+            return .disk
+        case .none:
+            return .none
+        @unknown default:
+            return .unknown
+        }
+    }
+}
+
+// SDWebImage
+extension SDImageCacheType {
+    var zwbCacheType: ZWBMonitorResourceCacheType {
+        switch self {
+        case .memory:
+            return .memory
+        case .disk:
+            return .disk
+        case .none:
+            return .none
+        default:
+            return .unknown
+        }
+    }
+}
+```
+
+### 声网 RTC
+
+声网实时音视频流量暂不处理。它通常不走普通 URLSession 请求，后续如果需要支持，应基于声网 SDK 的 stats 回调单独接入。
+
 ## 上传报告
 
 ### 默认 HTTP 上传
@@ -268,4 +433,3 @@ ZWB_Monitor
 - 上传和通知能力通过协议扩展，不绑定固定服务器。
 - 默认低侵入接入，业务语义事件提供轻量手动 API。
 - 报告数据结构保持英文稳定字段，展示层可以做中文映射。
-

@@ -83,6 +83,9 @@ class ViewController: UIViewController {
         let networkNames = snapshot.networkHistory.suffix(5).map {
             "  - \($0.method) \($0.url)\n    状态码：\($0.statusCode.map(String.init) ?? "-")，耗时：\(format($0.durationMS)) ms，响应大小：\($0.responseBytes) B"
         }.joined(separator: "\n")
+        let trafficGroups = snapshot.traffic.groups.map {
+            "  - \($0.name)：上传 \(format($0.uploadMB)) MB，下载 \(format($0.downloadMB)) MB，请求 \($0.requestCount) 次，失败 \($0.failureCount) 次"
+        }.joined(separator: "\n")
 
         return """
         【基础信息】
@@ -116,9 +119,21 @@ class ViewController: UIViewController {
         网络类型：\(displayName(forNetwork: snapshot.network.type))
         低数据模式：\(snapshot.network.isConstrained ? "是" : "否")
         昂贵网络：\(snapshot.network.isExpensive ? "是" : "否")
+        总上行流量：\(format(snapshot.traffic.totalUploadMB)) MB
+        总下载流量：\(format(snapshot.traffic.totalDownloadMB)) MB
         磁盘总空间：\(format(snapshot.disk.totalGB)) GB
         磁盘剩余：\(format(snapshot.disk.freeGB)) GB
         磁盘已用：\(format(snapshot.disk.usedGB)) GB
+
+        【流量分组】
+        \(trafficGroups.isEmpty ? "暂无流量记录" : trafficGroups)
+
+        【图片加载 / 缓存】
+        展示成功次数：\(snapshot.traffic.imageLoads.displayCount)
+        网络加载次数：\(snapshot.traffic.imageLoads.networkLoadCount)
+        内存缓存命中：\(snapshot.traffic.imageLoads.memoryCacheHitCount)
+        磁盘缓存命中：\(snapshot.traffic.imageLoads.diskCacheHitCount)
+        加载失败次数：\(snapshot.traffic.imageLoads.failureCount)
 
         【电量 / 温度】
         电量：\(snapshot.battery.level)%
