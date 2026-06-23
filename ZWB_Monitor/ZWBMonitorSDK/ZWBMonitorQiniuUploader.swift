@@ -4,22 +4,36 @@ import Foundation
 import Qiniu
 #endif
 
+/// 七牛报告上传错误。
 public enum ZWBMonitorQiniuUploadError: Error {
+    /// 当前工程没有链接 Qiniu SDK。CocoaPods 接入 `ZWB_Monitor` 时会自动拉取 Qiniu。
     case sdkUnavailable
+    /// token 接口没有返回 `{ "token": "..." }`。
     case invalidTokenResponse
+    /// 七牛上传失败。
     case uploadFailed(String)
+    /// 上传成功后通知业务服务器维护索引失败。
     case indexCallbackFailed(String)
 }
 
+/// SDK 内置的七牛 token 获取器。
+/// 它会向你的业务服务器 POST 报告信息和 objectKey，并期望服务端返回 `{ "token": "七牛上传凭证" }`。
 public final class ZWBMonitorQiniuHTTPTokenProvider: ZWBMonitorQiniuTokenProviding {
+    /// 业务服务器签发七牛 upload token 的接口。
     private let endpoint: URL
+    /// 请求头，例如鉴权 token。
     private let headers: [String: String]
 
+    /// 创建 HTTP token 获取器。
+    /// - Parameters:
+    ///   - endpoint: 你的业务服务器接口，不是七牛官方接口。
+    ///   - headers: 业务鉴权头。
     public init(endpoint: URL, headers: [String: String] = [:]) {
         self.endpoint = endpoint
         self.headers = headers
     }
 
+    /// 向业务服务器请求七牛 upload token。
     public func requestUploadToken(
         report: ZWBMonitorReportFile,
         snapshot: ZWBMonitorSnapshot,
@@ -65,13 +79,16 @@ public final class ZWBMonitorQiniuHTTPTokenProvider: ZWBMonitorQiniuTokenProvidi
     }
 }
 
+/// 七牛报告上传器。通常不需要业务手动创建，配置 `ZWBMonitorConfig.qiniuUpload` 后预警会自动触发。
 public final class ZWBMonitorQiniuUploader: ZWBMonitorUploading {
     private let config: ZWBMonitorQiniuUploadConfig
 
+    /// 创建七牛报告上传器。
     public init(config: ZWBMonitorQiniuUploadConfig) {
         self.config = config
     }
 
+    /// 上传一份预警报告到七牛。
     public func upload(
         report: ZWBMonitorReportFile,
         snapshot: ZWBMonitorSnapshot,
@@ -107,6 +124,7 @@ public final class ZWBMonitorQiniuUploader: ZWBMonitorUploading {
             guard let self else { return }
             let isOK = info?.isOK == true
             let errorMessage = info?.error?.localizedDescription
+            // 报告上传本身也是上行流量，归类到 monitor_report 场景，便于后台排查 SDK 自身上传成本。
             ZWBMonitor.recordQiniuUpload(
                 host: self.config.uploadHost,
                 scene: "monitor_report",
@@ -144,6 +162,7 @@ public final class ZWBMonitorQiniuUploader: ZWBMonitorUploading {
             return
         }
 
+        // 回调业务服务器维护 index.json，让静态 HTML 后台能发现新报告。
         var request = URLRequest(url: callback.endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

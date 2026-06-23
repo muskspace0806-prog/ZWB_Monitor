@@ -86,6 +86,8 @@ class ViewController: UIViewController {
 
     @objc private func simulateQiniuUpload() {
         qiniuButton.isEnabled = false
+        // Demo 手动构造一份报告，用来演示“预警后自动上传七牛”的完整链路。
+        // 真实项目不需要手动调用这里；配置 qiniuUpload 后 SDK 会在达到阈值时自动处理。
         let snapshot = ZWBMonitor.currentSnapshot(reason: "demo_qiniu_upload")
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -100,6 +102,8 @@ class ViewController: UIViewController {
             localURL: nil,
             suggestedObjectKey: objectKey
         )
+        // Demo 使用假 tokenProvider，不会真正携带七牛凭证。
+        // 接入真实项目时替换成 ZWBMonitorQiniuHTTPTokenProvider 或自己的 tokenProvider。
         let config = ZWBMonitorQiniuUploadConfig(
             tokenProvider: DemoQiniuTokenProvider(),
             keyPrefix: "monitor-reports",
@@ -345,6 +349,8 @@ class ViewController: UIViewController {
     }
 }
 
+/// Demo 专用 tokenProvider：只返回假 token，用于说明接口形态。
+/// 真实项目必须由业务服务器用七牛 AK/SK 签发 upload token，客户端不要保存 AK/SK。
 private final class DemoQiniuTokenProvider: ZWBMonitorQiniuTokenProviding {
     func requestUploadToken(
         report: ZWBMonitorReportFile,

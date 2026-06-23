@@ -48,6 +48,8 @@ pod 'ZWB_Monitor', :path => '../ZWB_Monitor'
 ```swift
 import ZWBMonitor
 
+// 最小接入：启动后自动采集 CPU、内存、FPS、网络、页面等默认模块。
+// 不配置上传时，只会在本地生成报告，不会主动请求你的服务器。
 ZWBMonitor.start(config: .default)
 ```
 
@@ -55,6 +57,7 @@ ZWBMonitor.start(config: .default)
 
 ```swift
 let config = ZWBMonitorConfig(
+    // 只开启你关心的模块；不传时默认开启全部模块。
     enabledModules: [
         .cpu,
         .memory,
@@ -68,6 +71,7 @@ let config = ZWBMonitorConfig(
     ]
 )
 
+// 建议在 AppDelegate 或应用启动入口调用一次。
 ZWBMonitor.start(config: config)
 ```
 
@@ -362,10 +366,14 @@ extension SDImageCacheType {
 
 ```swift
 let config = ZWBMonitorConfig(
+    // 预警触发后要生成的报告格式。HTML 后台主要读取 json。
     reportFormats: [.json, .txt, .xml],
     upload: ZWBMonitorHTTPUploadConfig(
+        // 你的业务服务器接收报告的接口。
         endpoint: URL(string: "https://your-domain.com/monitor-upload")!,
+        // 服务端保存目录标识；也可以由服务端忽略，自行决定存储位置。
         directory: "monitor-reports/reports",
+        // 业务鉴权头，可不传。
         headers: [
             "Authorization": "Bearer token"
         ]
@@ -389,25 +397,35 @@ monitor-reports/reports/2026-06-23/com.example.demo/high_memory_2026-06-23T10-00
 
 ```swift
 let tokenProvider = ZWBMonitorQiniuHTTPTokenProvider(
+    // 你的业务服务器接口，不是七牛官方接口。
+    // 服务端用七牛 AK/SK 签发 upload token，然后返回 { "token": "..." }。
     endpoint: URL(string: "https://your-domain.com/qiniu/upload-token")!,
+    // 业务鉴权头，没有鉴权可以传空字典。
     headers: [
         "Authorization": "Bearer token"
     ]
 )
 
 let config = ZWBMonitorConfig(
+    // 建议至少保留 json，HTML 后台会读取 json。
     reportFormats: [.json],
     qiniuUpload: ZWBMonitorQiniuUploadConfig(
+        // SDK 达到预警时会先通过它拿七牛 upload token。
         tokenProvider: tokenProvider,
+        // 七牛对象路径前缀。最终路径类似 monitor-reports/reports/日期/bundleId/文件名.json。
         keyPrefix: "monitor-reports",
+        // 七牛上传域名，也会用于上传流量统计。
         uploadHost: "upload.qiniup.com",
+        // 你的 CDN 域名。配置后上传结果会带可访问 URL。
         cdnBaseURL: URL(string: "https://cdn.your-domain.com"),
+        // 可选：上传成功后通知你的服务器维护 index.json，HTML 后台才能自动发现新报告。
         indexCallback: ZWBMonitorQiniuIndexCallbackConfig(
             endpoint: URL(string: "https://your-domain.com/monitor/index")!
         )
     )
 )
 
+// 启动后无需手动上传；达到预警阈值时 SDK 会自动生成报告并上传七牛。
 ZWBMonitor.start(config: config)
 ```
 

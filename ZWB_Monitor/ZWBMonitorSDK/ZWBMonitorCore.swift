@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 
 public final class ZWBMonitor {
+    /// SDK 单例。普通接入建议使用静态方法，不需要直接访问该对象。
     public static let shared = ZWBMonitor()
 
     private var config: ZWBMonitorConfig = .default
@@ -28,34 +29,55 @@ public final class ZWBMonitor {
 
     private init() {}
 
+    /// 启动性能监控。通常在 `AppDelegate` 或应用启动入口调用一次。
+    /// - Parameter config: 监控配置；不传时默认开启全部模块，但不会自动上传。
     public static func start(config: ZWBMonitorConfig = .default) {
         shared.start(config: config)
     }
 
+    /// 停止性能监控。一般仅在调试或特殊业务场景使用。
     public static func stop() {
         shared.stop()
     }
 
+    /// 获取当前性能快照，不会触发上传。
+    /// - Parameters:
+    ///   - reason: 本次手动采集原因，方便后台识别。
+    ///   - level: 快照等级，默认普通信息。
     public static func currentSnapshot(reason: String = "manual", level: ZWBMonitorEventLevel = .info) -> ZWBMonitorSnapshot {
         shared.makeSnapshot(event: reason, level: level)
     }
 
+    /// 记录一条业务事件，会出现在报告的事件记录中。
+    /// - Parameters:
+    ///   - name: 事件名，例如 `SendMessage`、`EnterRoom`。
+    ///   - attributes: 附加信息，建议只放轻量字符串。
     public static func record(event name: String, attributes: [String: String] = [:]) {
         shared.record(event: name, attributes: attributes)
     }
 
+    /// 记录一次 Socket 重连。达到阈值后会触发 `socket_reconnect` 告警。
     public static func recordSocketReconnect() {
         shared.incrementCounter(\.socketReconnects)
     }
 
+    /// 记录一次上传失败。达到阈值后会触发 `upload_failure` 告警。
     public static func recordUploadFailure() {
         shared.incrementCounter(\.uploadFailures)
     }
 
+    /// 记录一次 API 失败。达到阈值后会触发 `api_failure` 告警。
     public static func recordAPIFailure() {
         shared.incrementCounter(\.apiFailures)
     }
 
+    /// 手动记录一笔流量。普通接入优先使用 `recordQiniuUpload` 或 URLSession 自动采集。
+    /// - Parameters:
+    ///   - host: 请求域名，用于流量分组。
+    ///   - name: 展示名称；为空时使用匹配到的分组名。
+    ///   - category: 流量分类。
+    ///   - direction: 上传、下载或双向。
+    ///   - bytes: 流量大小，单位字节。
     public static func recordTraffic(
         host: String,
         name: String? = nil,
@@ -90,6 +112,15 @@ public final class ZWBMonitor {
         )
     }
 
+    /// 手动记录一笔上传流量。七牛上传建议使用更简单的 `recordQiniuUpload`。
+    /// - Parameters:
+    ///   - provider: 上传服务商，例如 `qiniu`、`oss`。
+    ///   - host: 上传域名。
+    ///   - scene: 业务场景，例如 `chat_attachment`、`avatar_upload`。
+    ///   - bytes: 上传大小，单位字节。
+    ///   - duration: 上传耗时，单位秒。
+    ///   - success: 是否上传成功。
+    ///   - error: 失败原因，成功时可为空。
     public static func recordUploadTraffic(
         provider: String = "qiniu",
         host: String,
@@ -120,6 +151,15 @@ public final class ZWBMonitor {
         )
     }
 
+    /// 记录一笔七牛上传流量。适合已经知道文件大小的场景。
+    /// - Parameters:
+    ///   - host: 七牛上传域名，默认 `upload.qiniup.com`。
+    ///   - scene: 业务场景，例如 `chat_attachment`、`avatar_upload`。
+    ///   - bytes: 上传大小，单位字节。
+    ///   - startedAt: 上传开始时间；传入后 SDK 自动计算耗时。
+    ///   - duration: 已计算好的上传耗时；优先级高于 `startedAt`。
+    ///   - success: 七牛回调是否成功。
+    ///   - error: 失败原因，成功时可为空。
     public static func recordQiniuUpload(
         host: String = "upload.qiniup.com",
         scene: String? = nil,
@@ -141,6 +181,7 @@ public final class ZWBMonitor {
         )
     }
 
+    /// 记录一笔七牛上传流量。适合使用 `Data` 上传的场景，SDK 会自动读取 `data.count`。
     public static func recordQiniuUpload(
         host: String = "upload.qiniup.com",
         scene: String? = nil,
@@ -161,6 +202,7 @@ public final class ZWBMonitor {
         )
     }
 
+    /// 记录一笔七牛上传流量。适合使用本地文件路径上传的场景，SDK 会自动读取文件大小。
     public static func recordQiniuUpload(
         host: String = "upload.qiniup.com",
         scene: String? = nil,
@@ -183,6 +225,13 @@ public final class ZWBMonitor {
         )
     }
 
+    /// 记录一次图片加载结果。普通接入只需要传 URL、场景、成功/失败。
+    /// - Parameters:
+    ///   - url: 图片地址，用于定位资源。
+    ///   - scene: 业务场景，例如 `chat_image`、`avatar`。
+    ///   - cacheType: 缓存来源；普通接入可不传。
+    ///   - success: 图片是否加载成功。
+    ///   - error: 失败原因，成功时可为空。
     public static func recordImageLoad(
         url: URL?,
         scene: String? = nil,
@@ -193,6 +242,8 @@ public final class ZWBMonitor {
         shared.recordImageLoad(url: url, scene: scene, cacheType: cacheType, success: success, error: error)
     }
 
+    /// 创建带 SDK 网络采集能力的 URLSessionConfiguration。
+    /// 如果项目自建 URLSession，建议用该方法包装原配置。
     public static func makeMonitoredURLSessionConfiguration(_ base: URLSessionConfiguration = .default) -> URLSessionConfiguration {
         let existing = base.protocolClasses ?? []
         if !existing.contains(where: { $0 == ZWBMonitorURLProtocol.self }) {
