@@ -158,7 +158,15 @@ Note: sessions created before SDK startup cannot be modified retroactively. Star
 
 By default, if no rules are configured, all captured HTTP traffic is grouped into a single bucket: `All Traffic`.
 
-To split API traffic, resource downloads, Qiniu uploads, or other domains, configure host rules:
+To split API traffic, resource downloads, Qiniu uploads, or other domains, configure host rules.
+
+Upload and download traffic can share the same hosts. The SDK first finds matching host rules, then chooses the final group by traffic direction:
+
+- Upload traffic prefers `.qiniu` / `.upload`
+- Download traffic prefers `.resource` / `.api`
+- If the direction cannot be inferred, the first matching rule wins
+
+For example, if resource downloads and Qiniu uploads both use `456.com`, configure both rules with the same hosts:
 
 ```swift
 let config = ZWBMonitorConfig(
@@ -175,7 +183,7 @@ let config = ZWBMonitorConfig(
         ),
         ZWBMonitorTrafficRule(
             name: "Qiniu File Upload",
-            hosts: ["upload.qiniup.com", "up.qiniup.com"],
+            hosts: ["456.com", "cdn.456.com"],
             category: .qiniu
         )
     ]
@@ -193,6 +201,8 @@ The SDK matches each request by URL host and tracks:
 - Recent request records
 
 If no rule matches, traffic goes into `Unclassified Traffic`.
+
+For automatic interception, the SDK infers direction from request body bytes and response body bytes. For manual `recordTraffic` / `recordQiniuUpload` calls, the method itself provides the upload or download direction.
 
 Images, SVGA assets, and files are all tracked through resource domain rules as real network traffic. If an image is served from the Kingfisher / SDWebImage local cache, it usually does not issue a network request, so the SDK will not count duplicate download traffic.
 

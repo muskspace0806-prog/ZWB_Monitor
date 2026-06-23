@@ -238,7 +238,8 @@ public final class ZWBMonitor {
     func recordNetworkTrace(_ trace: ZWBMonitorSnapshot.NetworkTrace) {
         guard config.enabledModules.contains(.traffic) || config.enabledModules.contains(.network) else { return }
         var trace = trace
-        let classification = classify(urlString: trace.url, host: URL(string: trace.url)?.host)
+        let direction = inferTrafficDirection(uploadBytes: Int64(trace.requestBytes), downloadBytes: Int64(trace.responseBytes))
+        let classification = classify(urlString: trace.url, host: URL(string: trace.url)?.host, direction: direction)
         trace.trafficGroup = classification.name
         trace.trafficCategory = classification.category.rawValue
 
@@ -252,7 +253,7 @@ public final class ZWBMonitor {
                 source: ZWBMonitorTrafficSource.automatic.rawValue,
                 groupName: classification.name,
                 category: classification.category.rawValue,
-                direction: ZWBMonitorTrafficDirection.both.rawValue,
+                direction: direction.rawValue,
                 host: classification.host,
                 url: trace.url,
                 method: trace.method,
@@ -418,7 +419,7 @@ public final class ZWBMonitor {
         error: String?
     ) {
         guard config.enabledModules.contains(.traffic) else { return }
-        let classification = classify(urlString: url?.absoluteString, host: host, fallbackName: name, fallbackCategory: category)
+        let classification = classify(urlString: url?.absoluteString, host: host, direction: direction, fallbackName: name, fallbackCategory: category)
         let uploadBytes: Int64
         let downloadBytes: Int64
         switch direction {
@@ -470,12 +471,16 @@ public final class ZWBMonitor {
     private func classify(
         urlString: String?,
         host explicitHost: String?,
+        direction: ZWBMonitorTrafficDirection? = nil,
         fallbackName: String? = nil,
         fallbackCategory: ZWBMonitorTrafficCategory = .unclassified
     ) -> (name: String, category: ZWBMonitorTrafficCategory, hosts: [String], host: String?) {
         let host = explicitHost ?? urlString.flatMap { URL(string: $0)?.host }
         if let host {
-            for rule in config.trafficRules where rule.hosts.contains(where: { matches(host: host, ruleHost: $0) }) {
+            let matchedRules = config.trafficRules.filter { rule in
+                rule.hosts.contains(where: { matches(host: host, ruleHost: $0) })
+            }
+            if let rule = preferredRule(from: matchedRules, direction: direction) {
                 return (rule.name, rule.category, rule.hosts, host)
             }
         }
@@ -486,6 +491,39 @@ public final class ZWBMonitor {
             return ("All Traffic", .unclassified, [], host)
         }
         return ("Unclassified Traffic", .unclassified, host.map { [$0] } ?? [], host)
+    }
+
+    private func preferredRule(
+        from rules: [ZWBMonitorTrafficRule],
+        direction: ZWBMonitorTrafficDirection?
+    ) -> ZWBMonitorTrafficRule? {
+        guard !rules.isEmpty else { return nil }
+        let preferredCategories: [ZWBMonitorTrafficCategory]
+        switch direction {
+        case .some(.upload):
+            preferredCategories = [.qiniu, .upload]
+        case .some(.download):
+            preferredCategories = [.resource, .api]
+        case .some(.both), .none:
+            preferredCategories = []
+        }
+
+        for category in preferredCategories {
+            if let rule = rules.first(where: { $0.category == category }) {
+                return rule
+            }
+        }
+        return rules.first
+    }
+
+    private func inferTrafficDirection(uploadBytes: Int64, downloadBytes: Int64) -> ZWBMonitorTrafficDirection {
+        if uploadBytes > 0 {
+            return .upload
+        }
+        if downloadBytes > 0 {
+            return .download
+        }
+        return .both
     }
 
     private func matches(host: String, ruleHost: String) -> Bool {

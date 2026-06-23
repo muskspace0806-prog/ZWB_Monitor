@@ -93,7 +93,8 @@ public enum ZWBMonitorFileCategory: String, Codable, Hashable {
 }
 
 /// 按域名统计流量的规则。
-/// 例如业务接口域名填 `.api`，七牛 CDN 域名填 `.resource`，七牛上传域名填 `.qiniu`。
+/// 同一套 hosts 可以配置多条规则，SDK 会按流量方向自动选择：
+/// 上传优先匹配 `.qiniu` / `.upload`，下载优先匹配 `.resource` / `.api`。
 public struct ZWBMonitorTrafficRule: Codable, Hashable {
     /// 后台展示的分组名称，例如“业务接口”“七牛上传”。
     public var name: String

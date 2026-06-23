@@ -162,7 +162,15 @@ SDK 会记录请求 URL、Method、状态码、耗时、请求大小、响应大
 
 默认情况下，如果不配置任何规则，SDK 只会把可捕获的 HTTP 流量归为一个总分组：`All Traffic`，不会按域名拆分。
 
-如果你希望把业务接口、资源下载、七牛上传等流量拆开，可以配置域名规则：
+如果你希望把业务接口、资源下载、七牛上传等流量拆开，可以配置域名规则。
+
+上传和下载可以使用同一套 hosts。SDK 会先按 host 找到候选规则，再按流量方向选择最终分组：
+
+- 上传流量优先匹配 `.qiniu` / `.upload`
+- 下载流量优先匹配 `.resource` / `.api`
+- 如果方向无法判断，则使用配置顺序里的第一条匹配规则
+
+例如资源下载和七牛上传都走 `456.com`，可以这样写：
 
 ```swift
 let config = ZWBMonitorConfig(
@@ -179,7 +187,7 @@ let config = ZWBMonitorConfig(
         ),
         ZWBMonitorTrafficRule(
             name: "七牛文件上传",
-            hosts: ["upload.qiniup.com", "up.qiniup.com"],
+            hosts: ["456.com", "cdn.456.com"],
             category: .qiniu
         )
     ]
@@ -197,6 +205,8 @@ SDK 会根据请求 URL 的 host 自动匹配规则，并统计：
 - 最近请求记录
 
 如果没有匹配到任何规则，会进入 `Unclassified Traffic`。
+
+自动拦截时，SDK 会根据请求体大小和响应体大小判断方向；手动调用 `recordTraffic` / `recordQiniuUpload` 时，会直接使用你传入的方法语义作为上传或下载方向。
 
 图片、SVGA、文件等资源下载统一通过资源域名规则统计真实网络流量。若图片命中 Kingfisher / SDWebImage 本地缓存，通常不会再次发起网络请求，因此 SDK 不会重复计入下载流量。
 
