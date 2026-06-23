@@ -423,7 +423,7 @@ public struct ZWBMonitorSnapshot: Codable {
     public var thermal: ThermalInfo
     /// 当前页面信息。
     public var page: PageInfo
-    /// 流量分组、最近请求和图片加载统计。
+    /// 流量分组和最近请求统计。
     public var traffic: TrafficInfo
     /// 业务计数器。
     public var counters: Counters
@@ -527,8 +527,6 @@ public struct ZWBMonitorSnapshot: Codable {
         public var groups: [TrafficGroup]
         /// 最近流量记录。
         public var recentRecords: [TrafficRecord]
-        /// 图片加载统计。
-        public var imageLoads: ImageLoadInfo
     }
 
     /// 单个流量分组统计。
@@ -566,40 +564,6 @@ public struct ZWBMonitorSnapshot: Codable {
         public var fileExtension: String?
         public var mimeType: String?
         public var error: String?
-        public var time: String
-    }
-
-    /// 图片加载汇总。
-    public struct ImageLoadInfo: Codable {
-        /// 图片展示成功次数。
-        public var displayCount: Int
-        /// 明确标记为无缓存的网络加载次数。
-        public var networkLoadCount: Int
-        /// 内存缓存命中次数。
-        public var memoryCacheHitCount: Int
-        /// 磁盘缓存命中次数。
-        public var diskCacheHitCount: Int
-        /// 图片加载失败次数。
-        public var failureCount: Int
-        /// 最近图片加载记录。
-        public var records: [ImageLoadRecord]
-    }
-
-    /// 单次图片加载记录。
-    public struct ImageLoadRecord: Codable {
-        /// 图片 URL。
-        public var url: String?
-        /// 图片 host。
-        public var host: String?
-        /// 业务场景，例如 `chat_image`。
-        public var scene: String?
-        /// 缓存来源，普通接入默认为 `unknown`。
-        public var cacheType: String
-        /// 是否加载成功。
-        public var success: Bool
-        /// 失败原因。
-        public var error: String?
-        /// 记录时间。
         public var time: String
     }
 

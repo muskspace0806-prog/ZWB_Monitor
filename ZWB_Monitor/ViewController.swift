@@ -171,13 +171,6 @@ class ViewController: UIViewController {
         【流量分组】
         \(trafficGroups.isEmpty ? "暂无流量记录" : trafficGroups)
 
-        【图片加载 / 缓存】
-        展示成功次数：\(snapshot.traffic.imageLoads.displayCount)
-        网络加载次数：\(snapshot.traffic.imageLoads.networkLoadCount)
-        内存缓存命中：\(snapshot.traffic.imageLoads.memoryCacheHitCount)
-        磁盘缓存命中：\(snapshot.traffic.imageLoads.diskCacheHitCount)
-        加载失败次数：\(snapshot.traffic.imageLoads.failureCount)
-
         【电量 / 温度】
         电量：\(snapshot.battery.level)%
         充电状态：\(displayName(forBattery: snapshot.battery.state))

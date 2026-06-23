@@ -194,6 +194,8 @@ The SDK matches each request by URL host and tracks:
 
 If no rule matches, traffic goes into `Unclassified Traffic`.
 
+Images, SVGA assets, and files are all tracked through resource domain rules as real network traffic. If an image is served from the Kingfisher / SDWebImage local cache, it usually does not issue a network request, so the SDK will not count duplicate download traffic.
+
 ### Qiniu Upload
 
 Qiniu SDKs may hide their internal network stack, so automatic interception may not fully capture multipart upload, retry behavior, or real file size. For accurate upload traffic, record it in the Qiniu upload callback.
@@ -258,114 +260,6 @@ Parameter reference:
 | `success` | Whether the Qiniu callback succeeded | Yes |
 | `error` | Failure reason; omit for success | No |
 | `host` | Qiniu upload host, defaults to `upload.qiniup.com` | No |
-
-### Image Loading And Cache Hits
-
-Image loading stats and real network traffic are different metrics:
-
-- Real image download traffic is tracked by the network layer and domain rules.
-- Image display success, failure, and business scene are recorded from Kingfisher / SDWebImage callbacks.
-
-The common integration path does not require cache type. Record success or failure when image loading completes.
-
-Kingfisher example:
-
-```swift
-imageView.kf.setImage(with: url) { result in
-    switch result {
-    case .success:
-        ZWBMonitor.recordImageLoad(
-            url: url,
-            scene: "chat_image",
-            success: true
-        )
-    case .failure(let error):
-        ZWBMonitor.recordImageLoad(
-            url: url,
-            scene: "chat_image",
-            success: false,
-            error: error.localizedDescription
-        )
-    }
-}
-```
-
-SDWebImage example:
-
-```swift
-imageView.sd_setImage(with: url) { image, error, _, imageURL in
-    ZWBMonitor.recordImageLoad(
-        url: imageURL ?? url,
-        scene: "chat_image",
-        success: error == nil,
-        error: error?.localizedDescription
-    )
-}
-```
-
-`scene` is a business label, not an image framework parameter. It helps the dashboard group and diagnose image loading, for example:
-
-- `chat_image`: chat image
-- `avatar`: avatar
-- `feed_image`: feed image
-- `banner`: campaign banner
-
-Parameter reference:
-
-| Parameter | Meaning | Required |
-| --- | --- | --- |
-| `url` | Image URL, useful for locating the resource and host | No |
-| `scene` | Business scene label for dashboard grouping | No |
-| `success` | Whether image loading succeeded | Yes |
-| `error` | Failure reason; omit for success | No |
-| `cacheType` | Advanced parameter for memory/disk cache hit breakdown, defaults to `.unknown` | No |
-
-If you need memory cache, disk cache, and real network-load breakdowns, pass `cacheType` explicitly:
-
-```swift
-ZWBMonitor.recordImageLoad(
-    url: url,
-    scene: "chat_image",
-    cacheType: .memory,
-    success: true
-)
-```
-
-Add a tiny adapter in your app if needed:
-
-```swift
-// Kingfisher
-extension CacheType {
-    var zwbCacheType: ZWBMonitorResourceCacheType {
-        switch self {
-        case .memory:
-            return .memory
-        case .disk:
-            return .disk
-        case .none:
-            return .none
-        @unknown default:
-            return .unknown
-        }
-    }
-}
-
-// SDWebImage
-extension SDImageCacheType {
-    var zwbCacheType: ZWBMonitorResourceCacheType {
-        switch self {
-        case .memory:
-            return .memory
-        case .disk:
-            return .disk
-        case .none:
-            return .none
-        default:
-            return .unknown
-        }
-    }
-}
-```
 
 ### Agora RTC
 

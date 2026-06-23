@@ -16,7 +16,6 @@ public final class ZWBMonitor {
     private var breadcrumbs: [ZWBMonitorBreadcrumb] = []
     private var networkTraces: [ZWBMonitorSnapshot.NetworkTrace] = []
     private var trafficRecords: [ZWBMonitorSnapshot.TrafficRecord] = []
-    private var imageLoadRecords: [ZWBMonitorSnapshot.ImageLoadRecord] = []
     private var socketReconnects = 0
     private var uploadFailures = 0
     private var apiFailures = 0
@@ -223,23 +222,6 @@ public final class ZWBMonitor {
             success: success,
             error: error
         )
-    }
-
-    /// 记录一次图片加载结果。普通接入只需要传 URL、场景、成功/失败。
-    /// - Parameters:
-    ///   - url: 图片地址，用于定位资源。
-    ///   - scene: 业务场景，例如 `chat_image`、`avatar`。
-    ///   - cacheType: 缓存来源；普通接入可不传。
-    ///   - success: 图片是否加载成功。
-    ///   - error: 失败原因，成功时可为空。
-    public static func recordImageLoad(
-        url: URL?,
-        scene: String? = nil,
-        cacheType: ZWBMonitorResourceCacheType = .unknown,
-        success: Bool,
-        error: String? = nil
-    ) {
-        shared.recordImageLoad(url: url, scene: scene, cacheType: cacheType, success: success, error: error)
     }
 
     /// 创建带 SDK 网络采集能力的 URLSessionConfiguration。
@@ -478,25 +460,6 @@ public final class ZWBMonitor {
         lock.unlock()
     }
 
-    private func recordImageLoad(url: URL?, scene: String?, cacheType: ZWBMonitorResourceCacheType, success: Bool, error: String?) {
-        guard config.enabledModules.contains(.traffic) else { return }
-        let record = ZWBMonitorSnapshot.ImageLoadRecord(
-            url: url?.absoluteString,
-            host: url?.host,
-            scene: scene,
-            cacheType: cacheType.rawValue,
-            success: success,
-            error: error,
-            time: Self.dateFormatter.string(from: Date())
-        )
-        lock.lock()
-        imageLoadRecords.append(record)
-        if imageLoadRecords.count > 200 {
-            imageLoadRecords.removeFirst(imageLoadRecords.count - 200)
-        }
-        lock.unlock()
-    }
-
     private func appendTrafficRecordLocked(_ record: ZWBMonitorSnapshot.TrafficRecord) {
         trafficRecords.append(record)
         if trafficRecords.count > 300 {
@@ -534,7 +497,6 @@ public final class ZWBMonitor {
     private func makeTrafficInfo() -> ZWBMonitorSnapshot.TrafficInfo {
         lock.lock()
         let copiedRecords = trafficRecords
-        let copiedImageLoads = imageLoadRecords
         lock.unlock()
 
         let totalUpload = copiedRecords.reduce(Int64(0)) { $0 + $1.uploadBytes }
@@ -567,23 +529,13 @@ public final class ZWBMonitor {
             grouped[key] = group
         }
 
-        let imageLoads = ZWBMonitorSnapshot.ImageLoadInfo(
-            displayCount: copiedImageLoads.filter { $0.success }.count,
-            networkLoadCount: copiedImageLoads.filter { $0.success && $0.cacheType == ZWBMonitorResourceCacheType.none.rawValue }.count,
-            memoryCacheHitCount: copiedImageLoads.filter { $0.success && $0.cacheType == ZWBMonitorResourceCacheType.memory.rawValue }.count,
-            diskCacheHitCount: copiedImageLoads.filter { $0.success && $0.cacheType == ZWBMonitorResourceCacheType.disk.rawValue }.count,
-            failureCount: copiedImageLoads.filter { !$0.success }.count,
-            records: Array(copiedImageLoads.suffix(50))
-        )
-
         return ZWBMonitorSnapshot.TrafficInfo(
             totalUploadBytes: totalUpload,
             totalDownloadBytes: totalDownload,
             totalUploadMB: bytesToMB(totalUpload),
             totalDownloadMB: bytesToMB(totalDownload),
             groups: grouped.values.sorted { $0.downloadBytes + $0.uploadBytes > $1.downloadBytes + $1.uploadBytes },
-            recentRecords: Array(copiedRecords.suffix(80)),
-            imageLoads: imageLoads
+            recentRecords: Array(copiedRecords.suffix(80))
         )
     }
 
@@ -594,15 +546,7 @@ public final class ZWBMonitor {
             totalUploadMB: 0,
             totalDownloadMB: 0,
             groups: [],
-            recentRecords: [],
-            imageLoads: ZWBMonitorSnapshot.ImageLoadInfo(
-                displayCount: 0,
-                networkLoadCount: 0,
-                memoryCacheHitCount: 0,
-                diskCacheHitCount: 0,
-                failureCount: 0,
-                records: []
-            )
+            recentRecords: []
         )
     }
 

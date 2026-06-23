@@ -198,6 +198,8 @@ SDK 会根据请求 URL 的 host 自动匹配规则，并统计：
 
 如果没有匹配到任何规则，会进入 `Unclassified Traffic`。
 
+图片、SVGA、文件等资源下载统一通过资源域名规则统计真实网络流量。若图片命中 Kingfisher / SDWebImage 本地缓存，通常不会再次发起网络请求，因此 SDK 不会重复计入下载流量。
+
 ### 七牛云上传
 
 七牛云 SDK 可能内部封装网络层，自动拦截不一定能完整捕获分片、重试和真实文件大小。建议在七牛上传回调里手动补充记录。
@@ -262,114 +264,6 @@ ZWBMonitor.recordQiniuUpload(
 | `success` | 七牛回调结果是否成功 | 是 |
 | `error` | 失败原因，成功时可不传 | 否 |
 | `host` | 七牛上传域名，默认 `upload.qiniup.com` | 否 |
-
-### 图片加载和缓存命中
-
-图片加载统计和真实网络流量是两件事：
-
-- 图片真实下载流量：由网络层按域名统计。
-- 图片展示成功、失败、业务场景：由 Kingfisher / SDWebImage 回调记录。
-
-普通接入不需要关心缓存类型，图片加载完成后记录成功或失败即可。
-
-Kingfisher 示例：
-
-```swift
-imageView.kf.setImage(with: url) { result in
-    switch result {
-    case .success:
-        ZWBMonitor.recordImageLoad(
-            url: url,
-            scene: "chat_image",
-            success: true
-        )
-    case .failure(let error):
-        ZWBMonitor.recordImageLoad(
-            url: url,
-            scene: "chat_image",
-            success: false,
-            error: error.localizedDescription
-        )
-    }
-}
-```
-
-SDWebImage 示例：
-
-```swift
-imageView.sd_setImage(with: url) { image, error, _, imageURL in
-    ZWBMonitor.recordImageLoad(
-        url: imageURL ?? url,
-        scene: "chat_image",
-        success: error == nil,
-        error: error?.localizedDescription
-    )
-}
-```
-
-`scene` 是业务场景标识，不是图片框架参数。它用于后台聚合和排查，例如：
-
-- `chat_image`：聊天图片
-- `avatar`：头像
-- `feed_image`：动态图片
-- `banner`：运营 Banner
-
-参数说明：
-
-| 参数 | 含义 | 是否必填 |
-| --- | --- | --- |
-| `url` | 图片 URL，用来定位具体资源和 host | 否 |
-| `scene` | 业务场景标识，用来在后台区分图片来源 | 否 |
-| `success` | 图片是否加载成功 | 是 |
-| `error` | 失败原因，成功时可不传 | 否 |
-| `cacheType` | 高级参数，用于细分内存/磁盘缓存命中，默认 `.unknown` | 否 |
-
-如果你确实需要统计内存缓存、磁盘缓存、真实网络加载次数，可以额外传 `cacheType`：
-
-```swift
-ZWBMonitor.recordImageLoad(
-    url: url,
-    scene: "chat_image",
-    cacheType: .memory,
-    success: true
-)
-```
-
-业务侧可以按需写一个很薄的映射扩展：
-
-```swift
-// Kingfisher
-extension CacheType {
-    var zwbCacheType: ZWBMonitorResourceCacheType {
-        switch self {
-        case .memory:
-            return .memory
-        case .disk:
-            return .disk
-        case .none:
-            return .none
-        @unknown default:
-            return .unknown
-        }
-    }
-}
-
-// SDWebImage
-extension SDImageCacheType {
-    var zwbCacheType: ZWBMonitorResourceCacheType {
-        switch self {
-        case .memory:
-            return .memory
-        case .disk:
-            return .disk
-        case .none:
-            return .none
-        default:
-            return .unknown
-        }
-    }
-}
-```
 
 ### 声网 RTC
 
