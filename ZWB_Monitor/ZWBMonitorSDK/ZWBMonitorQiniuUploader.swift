@@ -107,13 +107,9 @@ public final class ZWBMonitorQiniuUploader: ZWBMonitorUploading {
             guard let self else { return }
             let isOK = info?.isOK == true
             let errorMessage = info?.error?.localizedDescription
-            ZWBMonitor.recordUploadTraffic(
-                provider: "qiniu",
+            ZWBMonitor.recordQiniuUpload(
                 host: self.config.uploadHost,
                 scene: "monitor_report",
-                fileCategory: .document,
-                fileExtension: report.format.rawValue,
-                mimeType: self.mimeType(for: report.format),
                 bytes: Int64(report.content.count),
                 duration: Date().timeIntervalSince(startedAt),
                 success: isOK,
@@ -203,17 +199,6 @@ public final class ZWBMonitorQiniuUploader: ZWBMonitorUploading {
         guard let baseURL = config.cdnBaseURL else { return nil }
         let base = baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return URL(string: base + "/" + trimLeadingSlash(objectKey))
-    }
-
-    private func mimeType(for format: ZWBMonitorReportFormat) -> String {
-        switch format {
-        case .json:
-            return "application/json"
-        case .txt:
-            return "text/plain"
-        case .xml:
-            return "application/xml"
-        }
     }
 
     private func trimSlashes(_ value: String) -> String {

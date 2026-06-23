@@ -181,68 +181,93 @@ If no rule matches, traffic goes into `Unclassified Traffic`.
 
 ### Qiniu Upload
 
-Qiniu SDKs may hide their internal network stack, so automatic interception may not fully capture multipart upload, retry behavior, or real file size. For accurate upload traffic, record it in the Qiniu upload callback:
+Qiniu SDKs may hide their internal network stack, so automatic interception may not fully capture multipart upload, retry behavior, or real file size. For accurate upload traffic, record it in the Qiniu upload callback.
+
+Uploads are tracked as one unified file upload type. The SDK does not require you to split image, audio, video, or document uploads. For diagnostics, the more useful fields are scene, bytes, duration, and success/failure.
 
 ```swift
 let start = Date()
-let fileSize = Int64(data.count)
 
 uploadManager.put(data, key: key, token: token, complete: { info, key, resp in
-    ZWBMonitor.recordUploadTraffic(
-        provider: "qiniu",
-        host: "upload.qiniup.com",
+    ZWBMonitor.recordQiniuUpload(
         scene: "chat_attachment",
-        fileCategory: .image,
-        fileExtension: "jpg",
-        mimeType: "image/jpeg",
-        bytes: fileSize,
-        duration: Date().timeIntervalSince(start),
+        data: data,
+        startedAt: start,
         success: info?.isOK == true,
         error: info?.error?.localizedDescription
     )
 }, option: option)
 ```
 
-For file URL uploads:
+For local file uploads:
 
 ```swift
-let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
-let fileSize = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
-let fileCategory = ZWBMonitorFileCategory.infer(fromExtension: fileURL.pathExtension)
+let start = Date()
+
+uploadManager.putFile(fileURL.path, key: key, token: token, complete: { info, key, resp in
+    ZWBMonitor.recordQiniuUpload(
+        scene: "chat_attachment",
+        fileURL: fileURL,
+        startedAt: start,
+        success: info?.isOK == true,
+        error: info?.error?.localizedDescription
+    )
+}, option: option)
 ```
 
-Supported file categories:
+If you already know the upload size, pass bytes directly:
 
-```text
-image / video / audio / document / archive / svga / file / unknown
+```swift
+ZWBMonitor.recordQiniuUpload(
+    scene: "chat_attachment",
+    bytes: fileSize,
+    duration: uploadDuration,
+    success: true
+)
 ```
+
+`scene` is a business label, not a Qiniu parameter. It helps the dashboard group and diagnose uploads, for example:
+
+- `chat_attachment`: chat attachment upload
+- `avatar_upload`: avatar upload
+- `feedback_file`: feedback file upload
+- `moment_media`: post media upload
+
+Parameter reference:
+
+| Parameter | Meaning | Required |
+| --- | --- | --- |
+| `scene` | Business scene label for dashboard grouping | No |
+| `data` / `fileURL` / `bytes` | Choose one; the SDK uses it to calculate upload bytes | Yes |
+| `startedAt` / `duration` | Upload duration; `startedAt` is converted automatically | No |
+| `success` | Whether the Qiniu callback succeeded | Yes |
+| `error` | Failure reason; omit for success | No |
+| `host` | Qiniu upload host, defaults to `upload.qiniup.com` | No |
 
 ### Image Loading And Cache Hits
 
 Image loading stats and real network traffic are different metrics:
 
 - Real image download traffic is tracked by the network layer and domain rules.
-- Image display count and cache hits are tracked by Kingfisher / SDWebImage callbacks.
+- Image display success, failure, and business scene are recorded from Kingfisher / SDWebImage callbacks.
 
-Cache hits are not counted as download traffic again. They are only counted in image usage stats.
+The common integration path does not require cache type. Record success or failure when image loading completes.
 
 Kingfisher example:
 
 ```swift
 imageView.kf.setImage(with: url) { result in
     switch result {
-    case .success(let value):
+    case .success:
         ZWBMonitor.recordImageLoad(
             url: url,
             scene: "chat_image",
-            cacheType: value.cacheType.zwbCacheType,
             success: true
         )
     case .failure(let error):
         ZWBMonitor.recordImageLoad(
             url: url,
             scene: "chat_image",
-            cacheType: .none,
             success: false,
             error: error.localizedDescription
         )
@@ -253,18 +278,45 @@ imageView.kf.setImage(with: url) { result in
 SDWebImage example:
 
 ```swift
-imageView.sd_setImage(with: url) { image, error, cacheType, imageURL in
+imageView.sd_setImage(with: url) { image, error, _, imageURL in
     ZWBMonitor.recordImageLoad(
         url: imageURL ?? url,
         scene: "chat_image",
-        cacheType: cacheType.zwbCacheType,
         success: error == nil,
         error: error?.localizedDescription
     )
 }
 ```
 
-Add a tiny adapter in your app:
+`scene` is a business label, not an image framework parameter. It helps the dashboard group and diagnose image loading, for example:
+
+- `chat_image`: chat image
+- `avatar`: avatar
+- `feed_image`: feed image
+- `banner`: campaign banner
+
+Parameter reference:
+
+| Parameter | Meaning | Required |
+| --- | --- | --- |
+| `url` | Image URL, useful for locating the resource and host | No |
+| `scene` | Business scene label for dashboard grouping | No |
+| `success` | Whether image loading succeeded | Yes |
+| `error` | Failure reason; omit for success | No |
+| `cacheType` | Advanced parameter for memory/disk cache hit breakdown, defaults to `.unknown` | No |
+
+If you need memory cache, disk cache, and real network-load breakdowns, pass `cacheType` explicitly:
+
+```swift
+ZWBMonitor.recordImageLoad(
+    url: url,
+    scene: "chat_image",
+    cacheType: .memory,
+    success: true
+)
+```
+
+Add a tiny adapter in your app if needed:
 
 ```swift
 // Kingfisher

@@ -94,7 +94,7 @@ public final class ZWBMonitor {
         provider: String = "qiniu",
         host: String,
         scene: String? = nil,
-        fileCategory: ZWBMonitorFileCategory = .unknown,
+        fileCategory: ZWBMonitorFileCategory = .file,
         fileExtension: String? = nil,
         mimeType: String? = nil,
         bytes: Int64,
@@ -120,10 +120,73 @@ public final class ZWBMonitor {
         )
     }
 
+    public static func recordQiniuUpload(
+        host: String = "upload.qiniup.com",
+        scene: String? = nil,
+        bytes: Int64,
+        startedAt: Date? = nil,
+        duration: TimeInterval? = nil,
+        success: Bool,
+        error: String? = nil
+    ) {
+        recordUploadTraffic(
+            provider: "qiniu",
+            host: host,
+            scene: scene,
+            fileCategory: .file,
+            bytes: bytes,
+            duration: duration ?? startedAt.map { Date().timeIntervalSince($0) },
+            success: success,
+            error: error
+        )
+    }
+
+    public static func recordQiniuUpload(
+        host: String = "upload.qiniup.com",
+        scene: String? = nil,
+        data: Data,
+        startedAt: Date? = nil,
+        duration: TimeInterval? = nil,
+        success: Bool,
+        error: String? = nil
+    ) {
+        recordQiniuUpload(
+            host: host,
+            scene: scene,
+            bytes: Int64(data.count),
+            startedAt: startedAt,
+            duration: duration,
+            success: success,
+            error: error
+        )
+    }
+
+    public static func recordQiniuUpload(
+        host: String = "upload.qiniup.com",
+        scene: String? = nil,
+        fileURL: URL,
+        startedAt: Date? = nil,
+        duration: TimeInterval? = nil,
+        success: Bool,
+        error: String? = nil
+    ) {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        let bytes = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+        recordQiniuUpload(
+            host: host,
+            scene: scene,
+            bytes: bytes,
+            startedAt: startedAt,
+            duration: duration,
+            success: success,
+            error: error
+        )
+    }
+
     public static func recordImageLoad(
         url: URL?,
         scene: String? = nil,
-        cacheType: ZWBMonitorResourceCacheType,
+        cacheType: ZWBMonitorResourceCacheType = .unknown,
         success: Bool,
         error: String? = nil
     ) {
