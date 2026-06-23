@@ -85,8 +85,9 @@ final class ZWBMonitorReporter {
             guard let data = makeContent(snapshot: snapshot, format: format) else { return nil }
             let fileName = "\(snapshot.event)_\(safeTime(snapshot.time))_\(snapshot.id).\(format.rawValue)"
             let localURL = directory.appendingPathComponent(fileName)
+            let objectKey = suggestedObjectKey(snapshot: snapshot, fileName: fileName)
             try? data.write(to: localURL, options: .atomic)
-            return ZWBMonitorReportFile(id: snapshot.id, fileName: fileName, format: format, content: data, localURL: localURL)
+            return ZWBMonitorReportFile(id: snapshot.id, fileName: fileName, format: format, content: data, localURL: localURL, suggestedObjectKey: objectKey)
         }.sorted { $0.format.rawValue < $1.format.rawValue }
     }
 
@@ -148,6 +149,17 @@ final class ZWBMonitorReporter {
         time.replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: ".", with: "-")
     }
 
+    private func suggestedObjectKey(snapshot: ZWBMonitorSnapshot, fileName: String) -> String {
+        let date = String(snapshot.time.prefix(10)).isEmpty ? "unknown-date" : String(snapshot.time.prefix(10))
+        let bundleId = sanitizePathComponent(snapshot.app.bundleId)
+        return "reports/\(date)/\(bundleId)/\(fileName)"
+    }
+
+    private func sanitizePathComponent(_ value: String) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+        return value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }.map(String.init).joined()
+    }
+
     private func escape(_ value: String) -> String {
         value
             .replacingOccurrences(of: "&", with: "&amp;")
@@ -156,4 +168,3 @@ final class ZWBMonitorReporter {
             .replacingOccurrences(of: ">", with: "&gt;")
     }
 }
-

@@ -158,6 +158,47 @@ public struct ZWBDingTalkConfig {
     }
 }
 
+public protocol ZWBMonitorQiniuTokenProviding: AnyObject {
+    func requestUploadToken(
+        report: ZWBMonitorReportFile,
+        snapshot: ZWBMonitorSnapshot,
+        objectKey: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    )
+}
+
+public struct ZWBMonitorQiniuIndexCallbackConfig {
+    public var endpoint: URL
+    public var headers: [String: String]
+
+    public init(endpoint: URL, headers: [String: String] = [:]) {
+        self.endpoint = endpoint
+        self.headers = headers
+    }
+}
+
+public struct ZWBMonitorQiniuUploadConfig {
+    public var tokenProvider: ZWBMonitorQiniuTokenProviding
+    public var keyPrefix: String
+    public var uploadHost: String
+    public var cdnBaseURL: URL?
+    public var indexCallback: ZWBMonitorQiniuIndexCallbackConfig?
+
+    public init(
+        tokenProvider: ZWBMonitorQiniuTokenProviding,
+        keyPrefix: String = "monitor-reports",
+        uploadHost: String = "upload.qiniup.com",
+        cdnBaseURL: URL? = nil,
+        indexCallback: ZWBMonitorQiniuIndexCallbackConfig? = nil
+    ) {
+        self.tokenProvider = tokenProvider
+        self.keyPrefix = keyPrefix
+        self.uploadHost = uploadHost
+        self.cdnBaseURL = cdnBaseURL
+        self.indexCallback = indexCallback
+    }
+}
+
 public struct ZWBMonitorConfig {
     public var enabledModules: Set<ZWBMonitorModule>
     public var thresholds: ZWBMonitorThresholds
@@ -165,6 +206,7 @@ public struct ZWBMonitorConfig {
     public var reportFormats: Set<ZWBMonitorReportFormat>
     public var localReportDirectory: URL?
     public var upload: ZWBMonitorHTTPUploadConfig?
+    public var qiniuUpload: ZWBMonitorQiniuUploadConfig?
     public var dingTalk: ZWBDingTalkConfig?
     public var customUploader: ZWBMonitorUploading?
     public var customNotifier: ZWBMonitorNotifying?
@@ -183,6 +225,7 @@ public struct ZWBMonitorConfig {
         reportFormats: Set<ZWBMonitorReportFormat> = [.json, .txt],
         localReportDirectory: URL? = nil,
         upload: ZWBMonitorHTTPUploadConfig? = nil,
+        qiniuUpload: ZWBMonitorQiniuUploadConfig? = nil,
         dingTalk: ZWBDingTalkConfig? = nil,
         customUploader: ZWBMonitorUploading? = nil,
         customNotifier: ZWBMonitorNotifying? = nil,
@@ -196,6 +239,7 @@ public struct ZWBMonitorConfig {
         self.reportFormats = reportFormats
         self.localReportDirectory = localReportDirectory
         self.upload = upload
+        self.qiniuUpload = qiniuUpload
         self.dingTalk = dingTalk
         self.customUploader = customUploader
         self.customNotifier = customNotifier
@@ -208,10 +252,12 @@ public struct ZWBMonitorConfig {
 public struct ZWBMonitorUploadResult {
     public var reportId: String?
     public var remoteURL: URL?
+    public var objectKey: String?
 
-    public init(reportId: String? = nil, remoteURL: URL? = nil) {
+    public init(reportId: String? = nil, remoteURL: URL? = nil, objectKey: String? = nil) {
         self.reportId = reportId
         self.remoteURL = remoteURL
+        self.objectKey = objectKey
     }
 }
 
@@ -229,13 +275,22 @@ public struct ZWBMonitorReportFile {
     public var format: ZWBMonitorReportFormat
     public var content: Data
     public var localURL: URL?
+    public var suggestedObjectKey: String?
 
-    public init(id: String, fileName: String, format: ZWBMonitorReportFormat, content: Data, localURL: URL? = nil) {
+    public init(
+        id: String,
+        fileName: String,
+        format: ZWBMonitorReportFormat,
+        content: Data,
+        localURL: URL? = nil,
+        suggestedObjectKey: String? = nil
+    ) {
         self.id = id
         self.fileName = fileName
         self.format = format
         self.content = content
         self.localURL = localURL
+        self.suggestedObjectKey = suggestedObjectKey
     }
 }
 

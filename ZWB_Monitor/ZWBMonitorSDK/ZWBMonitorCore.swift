@@ -222,6 +222,10 @@ public final class ZWBMonitor {
             ZWBMonitorHTTPUploader(config: upload).upload(report: report, snapshot: snapshot) { _ in }
         }
 
+        if let qiniuUpload = config.qiniuUpload, let report = primary {
+            ZWBMonitorQiniuUploader(config: qiniuUpload).upload(report: report, snapshot: snapshot) { _ in }
+        }
+
         if let uploader = config.customUploader, let report = primary {
             uploader.upload(report: report, snapshot: snapshot) { _ in }
         }

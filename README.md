@@ -33,6 +33,8 @@ https://github.com/muskspace0806-prog/ZWB_Monitor.git
 pod 'ZWB_Monitor', :git => 'https://github.com/muskspace0806-prog/ZWB_Monitor.git'
 ```
 
+CocoaPods 接入会自动拉取 `Qiniu`，用于预警报告自动上传七牛。如果你暂时不配置 `qiniuUpload`，不会产生七牛上传行为。
+
 本地调试时也可以使用：
 
 ```ruby
@@ -322,6 +324,52 @@ ZWBMonitor.start(config: config)
 ```
 
 默认上传会把报告内容、文件名、格式、App 信息、事件类型等一起发送给服务器。服务器可以保存到指定目录，并维护 `index.json`。
+
+### 七牛自动上传监控报告
+
+如果预警触发后希望 SDK 自动把报告上传到七牛，可以配置 `qiniuUpload`。SDK 会为每份报告生成唯一对象路径，默认形如：
+
+```text
+monitor-reports/reports/2026-06-23/com.example.demo/high_memory_2026-06-23T10-00-00Z_uuid.json
+```
+
+七牛上传 token 必须由你的业务服务端签发，客户端不要保存七牛 AK/SK。最简单的方式是使用 SDK 内置的 HTTP token provider：
+
+```swift
+let tokenProvider = ZWBMonitorQiniuHTTPTokenProvider(
+    endpoint: URL(string: "https://your-domain.com/qiniu/upload-token")!,
+    headers: [
+        "Authorization": "Bearer token"
+    ]
+)
+
+let config = ZWBMonitorConfig(
+    reportFormats: [.json],
+    qiniuUpload: ZWBMonitorQiniuUploadConfig(
+        tokenProvider: tokenProvider,
+        keyPrefix: "monitor-reports",
+        uploadHost: "upload.qiniup.com",
+        cdnBaseURL: URL(string: "https://cdn.your-domain.com"),
+        indexCallback: ZWBMonitorQiniuIndexCallbackConfig(
+            endpoint: URL(string: "https://your-domain.com/monitor/index")!
+        )
+    )
+)
+
+ZWBMonitor.start(config: config)
+```
+
+`/qiniu/upload-token` 需要返回：
+
+```json
+{
+  "token": "七牛上传凭证"
+}
+```
+
+如果配置了 `indexCallback`，七牛上传成功后 SDK 会把报告 ID、App 信息、事件、等级、对象路径和 CDN URL 回调给你的服务端，服务端可以据此维护 `index.json`，供 HTML 后台读取。
+
+上传监控报告本身也会自动记入流量统计，分类为 `qiniu`，场景为 `monitor_report`。
 
 ### 自定义上传
 

@@ -11,6 +11,7 @@ class ViewController: UIViewController {
     private let textView = UITextView()
     private let refreshButton = UIButton(type: .system)
     private let eventButton = UIButton(type: .system)
+    private let qiniuButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -40,10 +41,14 @@ class ViewController: UIViewController {
         eventButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         eventButton.addTarget(self, action: #selector(recordDemoEvent), for: .touchUpInside)
 
-        let buttonStack = UIStackView(arrangedSubviews: [refreshButton, eventButton])
-        buttonStack.axis = .horizontal
-        buttonStack.spacing = 12
-        buttonStack.distribution = .fillEqually
+        qiniuButton.setTitle("模拟七牛报告上传", for: .normal)
+        qiniuButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        qiniuButton.addTarget(self, action: #selector(simulateQiniuUpload), for: .touchUpInside)
+
+        let buttonStack = UIStackView(arrangedSubviews: [refreshButton, eventButton, qiniuButton])
+        buttonStack.axis = .vertical
+        buttonStack.spacing = 10
+        buttonStack.distribution = .fill
 
         textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         textView.textColor = .label
@@ -64,7 +69,8 @@ class ViewController: UIViewController {
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             refreshButton.heightAnchor.constraint(equalToConstant: 44),
-            eventButton.heightAnchor.constraint(equalToConstant: 44)
+            eventButton.heightAnchor.constraint(equalToConstant: 44),
+            qiniuButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
 
@@ -76,6 +82,39 @@ class ViewController: UIViewController {
     @objc private func recordDemoEvent() {
         ZWBMonitor.record(event: "DemoButtonTapped", attributes: ["screen": "ViewController"])
         refreshSnapshot()
+    }
+
+    @objc private func simulateQiniuUpload() {
+        qiniuButton.isEnabled = false
+        let snapshot = ZWBMonitor.currentSnapshot(reason: "demo_qiniu_upload")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = (try? encoder.encode(snapshot)) ?? Data()
+        let fileName = "demo_qiniu_upload_\(snapshot.id).json"
+        let objectKey = "reports/\(String(snapshot.time.prefix(10)))/\(sanitizePathComponent(snapshot.app.bundleId))/\(fileName)"
+        let report = ZWBMonitorReportFile(
+            id: snapshot.id,
+            fileName: fileName,
+            format: .json,
+            content: data,
+            localURL: nil,
+            suggestedObjectKey: objectKey
+        )
+        let config = ZWBMonitorQiniuUploadConfig(
+            tokenProvider: DemoQiniuTokenProvider(),
+            keyPrefix: "monitor-reports",
+            uploadHost: "upload.qiniup.com",
+            cdnBaseURL: URL(string: "https://cdn.example.com"),
+            indexCallback: nil
+        )
+
+        ZWBMonitorQiniuUploader(config: config).upload(report: report, snapshot: snapshot) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.qiniuButton.isEnabled = true
+                self.textView.text = self.makeQiniuDemoText(snapshot: snapshot, report: report, result: result)
+            }
+        }
     }
 
     private func makeReadableText(from snapshot: ZWBMonitorSnapshot) -> String {
@@ -164,6 +203,7 @@ class ViewController: UIViewController {
         [
             "manual": "手动采集",
             "demo_button": "Demo 按钮采集",
+            "demo_qiniu_upload": "Demo 七牛报告上传",
             "sample": "定时采样",
             "high_memory": "内存过高",
             "high_cpu": "CPU 过高",
@@ -223,5 +263,95 @@ class ViewController: UIViewController {
 
     private func format(_ value: Double) -> String {
         String(format: "%.2f", value)
+    }
+
+    private func makeQiniuDemoText(
+        snapshot: ZWBMonitorSnapshot,
+        report: ZWBMonitorReportFile,
+        result: Result<ZWBMonitorUploadResult, Error>
+    ) -> String {
+        let status: String
+        switch result {
+        case .success(let uploadResult):
+            status = """
+            上传结果：成功
+            七牛对象路径：\(uploadResult.objectKey ?? report.suggestedObjectKey ?? report.fileName)
+            CDN 地址：\(uploadResult.remoteURL?.absoluteString ?? "未配置")
+            """
+        case .failure(let error):
+            status = """
+            上传结果：未真正上传
+            原因：\(displayName(forQiniuError: error))
+            """
+        }
+
+        return """
+        【七牛自动上传 Demo】
+        这个按钮演示 SDK 内部封装的预警报告上传链路：
+        1. 生成监控快照
+        2. 生成 JSON 报告
+        3. 生成唯一七牛对象路径
+        4. 请求业务服务端签发上传 token
+        5. 调用七牛 SDK 上传
+        6. 可选回调业务服务端维护 index.json
+
+        【本次模拟报告】
+        报告 ID：\(snapshot.id)
+        事件：\(displayName(forEvent: snapshot.event))
+        文件名：\(report.fileName)
+        报告大小：\(report.content.count) B
+        建议对象路径：\(report.suggestedObjectKey ?? "-")
+        实际对象前缀：monitor-reports
+        上传域名：upload.qiniup.com
+        CDN 示例：https://cdn.example.com
+
+        【Token 接口约定】
+        SDK 会 POST：
+        objectKey / reportId / fileName / format / event / level / time / app
+
+        服务端返回：
+        { "token": "七牛上传凭证" }
+
+        【索引回调】
+        如果配置 indexCallback，上传成功后 SDK 会把报告 ID、App 信息、事件、等级、对象路径和 CDN URL 发给你的服务端。
+        服务端再维护 index.json，HTML 后台就能从统一目录读取多个 App 的多份报告。
+
+        【执行结果】
+        \(status)
+
+        提示：Demo 默认使用 mock token，不会携带真实七牛凭证。接入真实项目时，把 DemoQiniuTokenProvider 换成 ZWBMonitorQiniuHTTPTokenProvider 或你自己的 tokenProvider。
+        """
+    }
+
+    private func displayName(forQiniuError error: Error) -> String {
+        if let qiniuError = error as? ZWBMonitorQiniuUploadError {
+            switch qiniuError {
+            case .sdkUnavailable:
+                return "当前 Demo 工程没有链接 Qiniu SDK；CocoaPods 接入后会自动拉取 Qiniu。"
+            case .invalidTokenResponse:
+                return "token 接口没有返回有效 token。"
+            case .uploadFailed(let message):
+                return message
+            case .indexCallbackFailed(let message):
+                return "索引回调失败：\(message)"
+            }
+        }
+        return error.localizedDescription
+    }
+
+    private func sanitizePathComponent(_ value: String) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+        return value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }.map(String.init).joined()
+    }
+}
+
+private final class DemoQiniuTokenProvider: ZWBMonitorQiniuTokenProviding {
+    func requestUploadToken(
+        report: ZWBMonitorReportFile,
+        snapshot: ZWBMonitorSnapshot,
+        objectKey: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        completion(.success("demo-upload-token-from-your-server"))
     }
 }

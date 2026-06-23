@@ -33,6 +33,8 @@ https://github.com/muskspace0806-prog/ZWB_Monitor.git
 pod 'ZWB_Monitor', :git => 'https://github.com/muskspace0806-prog/ZWB_Monitor.git'
 ```
 
+CocoaPods installs `Qiniu` automatically for automatic alert report uploads. If `qiniuUpload` is not configured, no Qiniu upload is performed.
+
 For local development:
 
 ```ruby
@@ -322,6 +324,52 @@ ZWBMonitor.start(config: config)
 ```
 
 The default uploader sends report content, file name, format, app metadata, event type, and timestamp to your server. Your server can store the file and update `index.json`.
+
+### Automatic Qiniu Report Upload
+
+To upload alert reports to Qiniu automatically when a threshold is triggered, configure `qiniuUpload`. The SDK generates a unique object key for each report. By default it looks like:
+
+```text
+monitor-reports/reports/2026-06-23/com.example.demo/high_memory_2026-06-23T10-00-00Z_uuid.json
+```
+
+Qiniu upload tokens must be issued by your backend. Do not store Qiniu AK/SK in the client. The built-in HTTP token provider expects your backend to return a JSON object containing `token`:
+
+```swift
+let tokenProvider = ZWBMonitorQiniuHTTPTokenProvider(
+    endpoint: URL(string: "https://your-domain.com/qiniu/upload-token")!,
+    headers: [
+        "Authorization": "Bearer token"
+    ]
+)
+
+let config = ZWBMonitorConfig(
+    reportFormats: [.json],
+    qiniuUpload: ZWBMonitorQiniuUploadConfig(
+        tokenProvider: tokenProvider,
+        keyPrefix: "monitor-reports",
+        uploadHost: "upload.qiniup.com",
+        cdnBaseURL: URL(string: "https://cdn.your-domain.com"),
+        indexCallback: ZWBMonitorQiniuIndexCallbackConfig(
+            endpoint: URL(string: "https://your-domain.com/monitor/index")!
+        )
+    )
+)
+
+ZWBMonitor.start(config: config)
+```
+
+Token endpoint response:
+
+```json
+{
+  "token": "qiniu-upload-token"
+}
+```
+
+When `indexCallback` is configured, the SDK calls your backend after Qiniu upload succeeds with the report ID, app metadata, event, level, object key, and CDN URL. Your backend can update `index.json` for the static dashboard.
+
+The report upload itself is also recorded as traffic with category `qiniu` and scene `monitor_report`.
 
 ### Custom Uploader
 

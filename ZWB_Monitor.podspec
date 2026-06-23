@@ -7,12 +7,13 @@ ZWB_Monitor is a general purpose iOS performance monitoring SDK. It can collect 
 device state, page transitions, network traces, event breadcrumbs, and generate JSON/TXT/XML snapshots
 when custom thresholds are triggered.
   DESC
-  s.homepage         = 'https://github.com/your-org/ZWB_Monitor'
+  s.homepage         = 'https://github.com/muskspace0806-prog/ZWB_Monitor'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'ZWB' => 'zwb@example.com' }
-  s.source           = { :git => 'https://github.com/your-org/ZWB_Monitor.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/muskspace0806-prog/ZWB_Monitor.git', :tag => s.version.to_s }
   s.ios.deployment_target = '13.0'
   s.swift_version    = '5.0'
   s.source_files     = 'ZWB_Monitor/ZWBMonitorSDK/**/*.swift'
   s.frameworks       = 'UIKit', 'Foundation', 'Network', 'CryptoKit'
+  s.dependency       'Qiniu'
 end
