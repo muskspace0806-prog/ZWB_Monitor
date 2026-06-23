@@ -134,7 +134,20 @@ ZWBMonitor.record(
 
 ## 网络监控
 
-如果使用 URLSession，可以使用 SDK 提供的配置生成方法：
+SDK 默认会通过 runtime 自动注入 `URLSessionConfiguration.default` 和 `.ephemeral`，尽量覆盖：
+
+- `URLSession.shared`
+- 自建 `URLSession(configuration: .default)`
+- Alamofire 默认 `Session`
+- 基于 Alamofire 的 Moya Provider
+
+因此通常不需要在每个接口处手动写代码。建议尽量在 App 启动早期调用：
+
+```swift
+ZWBMonitor.start(config: .default)
+```
+
+如果项目里有很特殊的自定义 `URLSessionConfiguration`，或者你关闭了 `enableNetworkURLProtocol`，再使用 SDK 提供的配置生成方法兜底：
 
 ```swift
 let configuration = ZWBMonitor.makeMonitoredURLSessionConfiguration(.default)
@@ -142,6 +155,8 @@ let session = URLSession(configuration: configuration)
 ```
 
 SDK 会记录请求 URL、Method、状态码、耗时、请求大小、响应大小和错误信息。
+
+注意：启动 SDK 之前已经创建好的 `URLSession` / Alamofire `Session` 无法被 retroactively 修改。为了覆盖更多请求，请尽量在网络层初始化之前启动 SDK。
 
 ## 流量分组统计
 

@@ -111,3 +111,61 @@ public final class ZWBMonitorURLProtocol: URLProtocol {
         dataTask?.cancel()
     }
 }
+
+final class ZWBMonitorURLProtocolInstaller {
+    private static var installed = false
+    private static let lock = NSLock()
+
+    static func install() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !installed else { return }
+        installed = true
+
+        URLProtocol.registerClass(ZWBMonitorURLProtocol.self)
+        URLSessionConfiguration.zwb_swizzleConfigurationFactory()
+    }
+}
+
+private extension URLSessionConfiguration {
+    static func zwb_swizzleConfigurationFactory() {
+        swizzleClassMethod(
+            originalSelector: #selector(getter: URLSessionConfiguration.default),
+            swizzledSelector: #selector(URLSessionConfiguration.zwb_monitor_default)
+        )
+        swizzleClassMethod(
+            originalSelector: #selector(getter: URLSessionConfiguration.ephemeral),
+            swizzledSelector: #selector(URLSessionConfiguration.zwb_monitor_ephemeral)
+        )
+    }
+
+    @objc class func zwb_monitor_default() -> URLSessionConfiguration {
+        let configuration = zwb_monitor_default()
+        configuration.zwb_insertMonitorURLProtocol()
+        return configuration
+    }
+
+    @objc class func zwb_monitor_ephemeral() -> URLSessionConfiguration {
+        let configuration = zwb_monitor_ephemeral()
+        configuration.zwb_insertMonitorURLProtocol()
+        return configuration
+    }
+
+    private static func swizzleClassMethod(originalSelector: Selector, swizzledSelector: Selector) {
+        guard
+            let metaClass = object_getClass(URLSessionConfiguration.self),
+            let originalMethod = class_getClassMethod(URLSessionConfiguration.self, originalSelector),
+            let swizzledMethod = class_getClassMethod(URLSessionConfiguration.self, swizzledSelector)
+        else {
+            return
+        }
+        method_exchangeImplementations(originalMethod, swizzledMethod)
+        _ = metaClass
+    }
+
+    func zwb_insertMonitorURLProtocol() {
+        let existing = protocolClasses ?? []
+        guard !existing.contains(where: { $0 == ZWBMonitorURLProtocol.self }) else { return }
+        protocolClasses = [ZWBMonitorURLProtocol.self] + existing
+    }
+}

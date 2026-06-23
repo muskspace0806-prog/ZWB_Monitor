@@ -278,7 +278,8 @@ public struct ZWBMonitorConfig {
     public var trafficRules: [ZWBMonitorTrafficRule]
     /// 是否自动记录页面展示，默认开启。
     public var enablePageAutoTrack: Bool
-    /// 是否注册 URLProtocol 自动采集 URLSession 流量，默认开启。
+    /// 是否通过 runtime 注入 URLProtocol 自动采集 URLSession 流量，默认开启。
+    /// 开启后会尽量覆盖 URLSession.shared、Alamofire、Moya 等基于 URLSession 的请求。
     public var enableNetworkURLProtocol: Bool
 
     /// 默认配置：开启全部模块，使用默认阈值，不自动上传。

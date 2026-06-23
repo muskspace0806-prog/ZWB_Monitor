@@ -243,7 +243,8 @@ public final class ZWBMonitor {
     }
 
     /// 创建带 SDK 网络采集能力的 URLSessionConfiguration。
-    /// 如果项目自建 URLSession，建议用该方法包装原配置。
+    /// 默认 runtime 注入会自动处理大多数 `URLSession.shared`、Alamofire、Moya 场景；
+    /// 只有当项目关闭自动注入，或使用特殊自定义 configuration 时，才需要手动调用该方法。
     public static func makeMonitoredURLSessionConfiguration(_ base: URLSessionConfiguration = .default) -> URLSessionConfiguration {
         let existing = base.protocolClasses ?? []
         if !existing.contains(where: { $0 == ZWBMonitorURLProtocol.self }) {
@@ -305,7 +306,7 @@ public final class ZWBMonitor {
             ZWBMonitorPageTracker.install()
         }
         if config.enableNetworkURLProtocol {
-            URLProtocol.registerClass(ZWBMonitorURLProtocol.self)
+            ZWBMonitorURLProtocolInstaller.install()
         }
         timer = Timer.scheduledTimer(withTimeInterval: max(config.sampleInterval, 0.5), repeats: true) { [weak self] _ in
             self?.sample()

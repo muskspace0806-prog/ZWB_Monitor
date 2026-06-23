@@ -130,7 +130,20 @@ ZWBMonitor.record(
 
 ## Network Monitoring
 
-For URLSession-based requests:
+By default, the SDK injects `URLSessionConfiguration.default` and `.ephemeral` at runtime to cover:
+
+- `URLSession.shared`
+- Custom `URLSession(configuration: .default)`
+- Alamofire default `Session`
+- Moya providers based on Alamofire
+
+You usually do not need to add code at every API call site. Start the SDK as early as possible:
+
+```swift
+ZWBMonitor.start(config: .default)
+```
+
+If your app uses a special custom `URLSessionConfiguration`, or if `enableNetworkURLProtocol` is disabled, wrap the configuration manually:
 
 ```swift
 let configuration = ZWBMonitor.makeMonitoredURLSessionConfiguration(.default)
@@ -138,6 +151,8 @@ let session = URLSession(configuration: configuration)
 ```
 
 The SDK records URL, method, status code, duration, request size, response size, and error message.
+
+Note: sessions created before SDK startup cannot be modified retroactively. Start the SDK before initializing your network layer whenever possible.
 
 ## Traffic Grouping
 
